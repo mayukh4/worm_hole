@@ -2,6 +2,9 @@
 
 A high-performance physics simulation and ray tracing engine for Morris-Thorne wormholes. This project visualizes the spacetime geometry and light-ray trajectories (geodesics) in the vicinity of a traversable wormhole.
 
+<img width="1267" height="709" alt="wormhole" src="https://github.com/user-attachments/assets/7fd0afeb-98a5-4fc3-9567-84e6cddc07eb" />
+
+
 ## Table of Contents
 - [Physics and Mathematics](#physics-and-mathematics)
 - [Project Architecture](#project-architecture)
