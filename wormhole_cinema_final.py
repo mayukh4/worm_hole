@@ -47,7 +47,7 @@ float noise(vec3 x) {
                    mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)),f.x),f.y),f.z);
 }
 
-// FBM (Fractal Brownian Motion) for detailed clouds
+// --- FBM (Fractal Brownian Motion) for detailed clouds ---
 float fbm(vec3 x) {
     float v = 0.0;
     float a = 0.5;
@@ -58,6 +58,54 @@ float fbm(vec3 x) {
         a *= 0.5;
     }
     return v;
+}
+
+// --- GALAXY RENDERER ---
+// Procedural Spiral Galaxy
+vec3 render_galaxy(vec3 dir, vec3 center_dir, vec3 up_vec, float scale, vec3 color) {
+    // 1. Create a coordinate system for the galaxy plane
+    vec3 z_axis = normalize(center_dir);
+    vec3 x_axis = normalize(cross(up_vec, z_axis));
+    vec3 y_axis = cross(z_axis, x_axis);
+    
+    // 2. Project view direction onto the galaxy plane (tangent plane approximation)
+    float dist_from_center = acos(dot(dir, z_axis)); // Angle from center
+    
+    // Discard if too far to save perf
+    if (dist_from_center > scale * 1.5) return vec3(0.0);
+    
+    // 3. Local 2D coordinates
+    float x = dot(dir, x_axis);
+    float y = dot(dir, y_axis);
+    
+    // Polar coordinates
+    float r = sqrt(x*x + y*y) / scale; // Normalized radius
+    float angle = atan(y, x);
+    
+    // 4. Galaxy Shape Logic
+    // Central Bulge
+    float core = exp(-r * 4.0);
+    
+    // Spiral Arms
+    // Arm twist: angle increases with radius
+    float twist = angle - r * 3.5;
+    // Two main arms (sin varies between -1 and 1, we want peaks)
+    float arms = sin(twist * 2.0); 
+    // Sharpen arms
+    arms = smoothstep(0.2, 1.0, arms);
+    // Fade arms with radius
+    float arm_brightness = arms * exp(-r * 1.5) * smoothstep(0.0, 0.2, r); // Don't draw arms in dead center
+    
+    // Add noise for dust/texture
+    float dust = fbm(vec3(x*15.0, y*15.0, 0.0));
+    
+    // 5. Combine
+    float total_light = core * 2.0 + arm_brightness * (0.8 + dust * 0.5);
+    
+    // Falloff at edge
+    total_light *= smoothstep(1.5, 0.5, r);
+    
+    return color * total_light * 1.5;
 }
 
 // --- BACKGROUND GENERATION ---
@@ -86,7 +134,14 @@ vec3 get_sky(vec3 dir, float uni_sign) {
         vec3 bright_cyan = vec3(0.1, 0.6, 1.2) * pow(cloud_core, 1.5) * 1.5;
         vec3 white_haze = vec3(0.9, 0.95, 1.0) * pow(cloud_core, 2.5) * 2.0;
         
+        
         col += deep_blue + bright_cyan + white_haze;
+        
+        // Add Galaxies (Universe A)
+        // Galaxy 1: Large Spiral overhead
+        col += render_galaxy(dir, normalize(vec3(0.3, 0.8, 0.2)), vec3(1.0, 0.0, 0.0), 0.35, vec3(0.6, 0.8, 1.0));
+        // Galaxy 2: Small distinct one
+        col += render_galaxy(dir, normalize(vec3(-0.7, -0.3, 0.5)), vec3(0.0, 1.0, 0.0), 0.2, vec3(0.8, 0.9, 1.0));
         
     } else {
         // --- UNIVERSE B (RED) ---
@@ -98,6 +153,12 @@ vec3 get_sky(vec3 dir, float uni_sign) {
         vec3 gold_fire = vec3(1.2, 0.7, 0.3) * pow(cloud_core, 1.2) * 2.2;
         
         col += red_glow + gold_fire;
+        
+        // Add Galaxies (Universe B)
+        // Galaxy 1: Golden spiral
+        col += render_galaxy(dir, normalize(vec3(-0.5, 0.6, -0.4)), vec3(0.0, 0.0, 1.0), 0.4, vec3(1.0, 0.8, 0.4));
+        // Galaxy 2: Distant red companion
+        col += render_galaxy(dir, normalize(vec3(0.8, -0.2, -0.3)), vec3(0.0, 1.0, 0.0), 0.25, vec3(1.0, 0.4, 0.2));
     }
     
     return col;
